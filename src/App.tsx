@@ -41,33 +41,33 @@ function App() {
   );
 
   const filteredProducts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const searchValue = searchTerm.trim().toLowerCase();
 
     return products.filter((product) => {
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        product.name.toLowerCase().includes(normalizedSearch) ||
-        product.description.toLowerCase().includes(normalizedSearch) ||
-        product.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
+      const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
+      const searchMatch =
+        searchValue.length === 0 ||
+        product.name.toLowerCase().includes(searchValue) ||
+        product.description.toLowerCase().includes(searchValue) ||
+        product.tags.some((tag) => tag.toLowerCase().includes(searchValue));
 
       if (route === 'local') {
-        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'local');
+        return categoryMatch && searchMatch && product.offers.some((offer) => offer.source === 'local');
       }
 
       if (route === 'our-store') {
-        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'our-store');
+        return categoryMatch && searchMatch && product.offers.some((offer) => offer.source === 'our-store');
       }
 
       if (route === 'external') {
-        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'amazon' || offer.source === 'noon');
+        return categoryMatch && searchMatch && product.offers.some((offer) => offer.source === 'amazon' || offer.source === 'noon');
       }
 
       if (route === 'products') {
-        return matchesCategory && matchesSearch;
+        return categoryMatch && searchMatch;
       }
 
-      return matchesCategory && matchesSearch;
+      return categoryMatch && searchMatch;
     });
   }, [route, searchTerm, selectedCategory]);
 
@@ -139,14 +139,18 @@ function App() {
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search products, brands or categories..."
             />
-            <button className="button primary" onClick={() => navigate('#products')}>
+            <button type="button" className="button primary" onClick={() => navigate('#products')}>
               Search
             </button>
           </div>
 
           <div className="hero-actions">
-            <button className="button primary" onClick={() => navigate('#products')}>Shop all products</button>
-            <button className="button secondary" onClick={() => navigate('#deals')}>View deals</button>
+            <button type="button" className="button primary" onClick={() => navigate('#products')}>
+              Shop all products
+            </button>
+            <button type="button" className="button secondary" onClick={() => navigate('#deals')}>
+              View deals
+            </button>
           </div>
 
           <div className="stats-row">
@@ -175,6 +179,7 @@ function App() {
             </div>
             <div className="buy-button-wrap">
               <button
+                type="button"
                 className="button primary"
                 onClick={() => {
                   setSelectedProductId(activeProduct.id);
@@ -195,6 +200,7 @@ function App() {
         {categories.map((category) => (
           <button
             key={category}
+            type="button"
             className={`chip ${selectedCategory === category ? 'active' : ''}`}
             onClick={() => {
               setSelectedCategory(category);
@@ -222,7 +228,9 @@ function App() {
           <span className="eyebrow">Products</span>
           <h2>Featured marketplace picks</h2>
         </div>
-        <button className="text-button" onClick={() => navigate('#products')}>See all</button>
+        <button type="button" className="text-button" onClick={() => navigate('#products')}>
+          See all
+        </button>
       </section>
 
       <div className="product-grid">
@@ -245,6 +253,7 @@ function App() {
                 </div>
                 <div className="card-actions">
                   <button
+                    type="button"
                     className="button primary"
                     onClick={() => {
                       setSelectedProductId(product.id);
@@ -253,10 +262,7 @@ function App() {
                   >
                     View buy box
                   </button>
-                  <button
-                    className="button secondary"
-                    onClick={() => addToCart(product.id, bestOffer.id)}
-                  >
+                  <button type="button" className="button secondary" onClick={() => addToCart(product.id, bestOffer.id)}>
                     Add to cart
                   </button>
                 </div>
@@ -318,6 +324,7 @@ function App() {
                 </div>
                 <div className="card-actions">
                   <button
+                    type="button"
                     className="button primary"
                     onClick={() => {
                       setSelectedProductId(product.id);
@@ -326,7 +333,7 @@ function App() {
                   >
                     Compare offers
                   </button>
-                  <button className="button secondary" onClick={() => addToCart(product.id, bestOffer.id)}>
+                  <button type="button" className="button secondary" onClick={() => addToCart(product.id, bestOffer.id)}>
                     Add to cart
                   </button>
                 </div>
@@ -348,9 +355,15 @@ function App() {
       </section>
 
       <div className="deal-tabs">
-        <button className={route === 'deals' ? 'active' : ''} onClick={() => navigate('#deals')}>All deals</button>
-        <button className={route === 'deals/amazon' ? 'active' : ''} onClick={() => navigate('#deals/amazon')}>Amazon</button>
-        <button className={route === 'deals/noon' ? 'active' : ''} onClick={() => navigate('#deals/noon')}>Noon</button>
+        <button type="button" className={route === 'deals' ? 'active' : ''} onClick={() => navigate('#deals')}>
+          All deals
+        </button>
+        <button type="button" className={route === 'deals/amazon' ? 'active' : ''} onClick={() => navigate('#deals/amazon')}>
+          Amazon
+        </button>
+        <button type="button" className={route === 'deals/noon' ? 'active' : ''} onClick={() => navigate('#deals/noon')}>
+          Noon
+        </button>
       </div>
 
       <div className="deal-grid">
@@ -398,7 +411,7 @@ function App() {
                 <td>{offer.shipping}</td>
                 <td>{offer.stock}</td>
                 <td>
-                  <button className="button primary small" onClick={() => addToCart(activeProduct.id, offer.id)}>
+                  <button type="button" className="button primary small" onClick={() => addToCart(activeProduct.id, offer.id)}>
                     Add to cart
                   </button>
                 </td>
@@ -458,10 +471,7 @@ function App() {
               <strong>{formatPrice(preferredOffer.price, preferredOffer.currency)}</strong>
               <small>{preferredOffer.sourceLabel}</small>
             </div>
-            <button
-              className="button primary"
-              onClick={() => addToCart(activeProduct.id, preferredOffer.id)}
-            >
+            <button type="button" className="button primary" onClick={() => addToCart(activeProduct.id, preferredOffer.id)}>
               {preferredOffer.isAffiliate ? 'Add affiliate offer' : 'Add to cart'}
             </button>
           </div>
@@ -475,7 +485,7 @@ function App() {
               <div key={offer.id} className={`offer-row ${offer.id === preferredOffer.id ? 'selected' : ''}`}>
                 <span>{offer.sourceLabel}</span>
                 <strong>{formatPrice(offer.price, offer.currency)}</strong>
-                <button className="mini-action" onClick={() => addToCart(activeProduct.id, offer.id)}>
+                <button type="button" className="mini-action" onClick={() => addToCart(activeProduct.id, offer.id)}>
                   Add
                 </button>
               </div>
@@ -500,7 +510,9 @@ function App() {
           {cartEntries.length === 0 ? (
             <div className="empty-state">
               <p>Your cart is empty. Explore the marketplace and add your first offer.</p>
-              <button className="button primary" onClick={() => navigate('#products')}>Start shopping</button>
+              <button type="button" className="button primary" onClick={() => navigate('#products')}>
+                Start shopping
+              </button>
             </div>
           ) : (
             cartEntries.map(({ product, offer, quantity, productId, offerId }) => (
@@ -512,9 +524,9 @@ function App() {
                   <strong>{formatPrice(offer.price, offer.currency)}</strong>
                 </div>
                 <div className="quantity-controls">
-                  <button onClick={() => updateCartQuantity(productId, offerId, -1)}>-</button>
+                  <button type="button" onClick={() => updateCartQuantity(productId, offerId, -1)}>-</button>
                   <span>{quantity}</span>
-                  <button onClick={() => updateCartQuantity(productId, offerId, 1)}>+</button>
+                  <button type="button" onClick={() => updateCartQuantity(productId, offerId, 1)}>+</button>
                 </div>
               </div>
             ))
@@ -539,7 +551,9 @@ function App() {
             <span>Total</span>
             <strong>{formatPrice(cartTotal, 'SAR')}</strong>
           </div>
-          <button className="button primary block" onClick={() => navigate('#checkout')}>Proceed to checkout</button>
+          <button type="button" className="button primary block" onClick={() => navigate('#checkout')}>
+            Proceed to checkout
+          </button>
         </aside>
       </div>
     </>
@@ -576,7 +590,7 @@ function App() {
               <option value="cash">Cash on Delivery</option>
             </select>
           </div>
-          <button className="button primary" type="button" onClick={() => navigate('#home')}>
+          <button type="button" className="button primary" onClick={() => navigate('#home')}>
             Confirm order
           </button>
         </form>
@@ -605,17 +619,19 @@ function App() {
       <header className="topbar">
         <div className="brand">Global Marketplace</div>
         <nav>
-          <button onClick={() => navigate('#home')}>Home</button>
-          <button onClick={() => navigate('#products')}>Products</button>
-          <button onClick={() => navigate('#deals')}>Deals</button>
-          <button onClick={() => navigate('#compare')}>Compare</button>
-          <button onClick={() => navigate('#sellers')}>Merchants</button>
+          <button type="button" onClick={() => navigate('#home')}>Home</button>
+          <button type="button" onClick={() => navigate('#products')}>Products</button>
+          <button type="button" onClick={() => navigate('#deals')}>Deals</button>
+          <button type="button" onClick={() => navigate('#compare')}>Compare</button>
+          <button type="button" onClick={() => navigate('#sellers')}>Merchants</button>
         </nav>
         <div className="header-actions">
-          <button className="cart-button" onClick={() => navigate('#cart')}>
+          <button type="button" className="cart-button" onClick={() => navigate('#cart')}>
             Cart ({cartCount})
           </button>
-          <button className="header-cta" onClick={() => navigate('#checkout')}>Sell with us</button>
+          <button type="button" className="header-cta" onClick={() => navigate('#checkout')}>
+            Sell with us
+          </button>
         </div>
       </header>
 
@@ -627,17 +643,6 @@ function App() {
       {routeName === 'buybox' && renderBuyBox()}
       {routeName === 'cart' && renderCart()}
       {routeName === 'checkout' && renderCheckout()}
-      {routeName === 'product' && (
-        <>
-          <div className="section-header">
-            <div>
-              <span className="eyebrow">Product</span>
-              <h2>{activeProduct.name}</h2>
-            </div>
-          </div>
-          {renderBuyBox()}
-        </>
-      )}
 
       <footer className="site-footer">
         <div>
