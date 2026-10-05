@@ -33,8 +33,14 @@ a {
   color: inherit;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font: inherit;
+}
+
+button {
   cursor: pointer;
 }
 
@@ -70,12 +76,29 @@ img {
 
 .topbar nav {
   display: flex;
+  align-items: center;
   gap: 18px;
-  color: var(--muted);
 }
 
-.topbar nav a:hover {
+.topbar nav button,
+.text-button,
+.cart-button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.topbar nav button:hover,
+.text-button:hover,
+.cart-button:hover {
   color: var(--text);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header-cta,
@@ -116,6 +139,10 @@ img {
   font-size: 0.82rem;
 }
 
+.block {
+  width: 100%;
+}
+
 .hero {
   margin-top: 28px;
   display: grid;
@@ -130,7 +157,11 @@ img {
 .deal-card,
 .merchant-card,
 .compare-panel,
-.buybox-panel {
+.buybox-panel,
+.checkout-form,
+.checkout-summary,
+.cart-item,
+.empty-state {
   background: rgba(14, 24, 38, 0.82);
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -163,10 +194,37 @@ img {
   line-height: 1.7;
 }
 
+.search-box,
+.filter-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.search-box input,
+.filter-row input,
+.filter-row select,
+.field-group input,
+.field-group select,
+.field-group textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.search-box input {
+  flex: 1;
+  min-width: 200px;
+}
+
 .hero-actions {
   display: flex;
   gap: 14px;
   margin-top: 22px;
+  flex-wrap: wrap;
 }
 
 .stats-row {
@@ -253,7 +311,8 @@ img {
   padding: 0.7rem 1rem;
 }
 
-.chip.active {
+.chip.active,
+.deal-tabs button.active {
   background: rgba(47, 109, 246, 0.16);
   color: white;
   border-color: rgba(47, 109, 246, 0.34);
@@ -317,14 +376,32 @@ img {
   gap: 16px;
 }
 
+.section-header.with-filters {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .section-header h2 {
   margin: 8px 0 0;
   font-size: 2rem;
 }
 
-.section-header a {
+.text-button {
+  font-weight: 700;
   color: var(--primary-soft);
-} 
+}
+
+.filter-row {
+  align-items: center;
+}
+
+.filter-row input,
+.filter-row select,
+.field-group input,
+.field-group select,
+.field-group textarea {
+  min-width: 150px;
+}
 
 .product-grid,
 .deal-grid,
@@ -358,7 +435,9 @@ img {
 .price-row,
 .rating-row,
 .deal-price,
-.merchant-header {
+.merchant-header,
+.summary-row,
+.summary-purchase-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -373,12 +452,14 @@ img {
 
 .product-card h3,
 .deal-card h3,
-.merchant-card h3 {
+.merchant-card h3,
+.checkout-summary h3 {
   margin: 12px 0 10px;
 }
 
 .product-card p,
-.merchant-card p {
+.merchant-card p,
+.summary-purchase-item {
   color: var(--muted);
   line-height: 1.7;
 }
@@ -425,26 +506,22 @@ img {
   display: flex;
   gap: 10px;
   margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .deal-tabs {
   margin-top: 20px;
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.deal-tabs a {
+.deal-tabs button {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   border-radius: 999px;
   padding: 0.7rem 1rem;
   color: var(--muted);
-}
-
-.deal-tabs a.active {
-  color: white;
-  background: rgba(47, 109, 246, 0.12);
-  border-color: rgba(47, 109, 246, 0.3);
 }
 
 .deal-card {
@@ -550,8 +627,10 @@ th {
 }
 
 .offer-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -561,6 +640,14 @@ th {
 .offer-row.selected {
   border-color: rgba(47, 109, 246, 0.5);
   background: rgba(47, 109, 246, 0.08);
+}
+
+.mini-action {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 0.45rem 0.8rem;
 }
 
 .merchant-card {
@@ -574,6 +661,116 @@ th {
   display: grid;
   gap: 10px;
   color: var(--muted);
+}
+
+.cart-layout,
+.checkout-layout {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 22px;
+}
+
+.cart-items,
+.checkout-form,
+.checkout-summary {
+  padding: 20px;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.cart-item img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.cart-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-info h3 {
+  margin: 0 0 6px;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.4rem 0.7rem;
+}
+
+.quantity-controls button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.checkout-summary {
+  height: fit-content;
+}
+
+.summary-row {
+  margin: 14px 0;
+  color: var(--muted);
+}
+
+.summary-row.total {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+}
+
+.summary-purchase-item {
+  margin: 10px 0;
+}
+
+.empty-state {
+  padding: 28px;
+  text-align: center;
+}
+
+.empty-state p {
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.field-group {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.field-group label {
+  color: var(--muted);
+}
+
+.field-group input,
+.field-group select,
+.field-group textarea {
+  width: 100%;
+}
+
+.cart-button {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  color: var(--text);
 }
 
 .site-footer {
@@ -594,7 +791,9 @@ th {
   .deal-grid,
   .merchant-grid,
   .site-footer,
-  .ad-grid {
+  .ad-grid,
+  .cart-layout,
+  .checkout-layout {
     grid-template-columns: 1fr;
   }
 
@@ -603,7 +802,8 @@ th {
     gap: 12px;
   }
 
-  .topbar nav {
+  .topbar nav,
+  .header-actions {
     flex-wrap: wrap;
   }
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { bannerAds, featuredDeals, merchants, products } from './data/catalog';
-import type { Product } from './types';
 
 const getCurrentRoute = () => {
   const raw = window.location.hash.replace('#', '').replace(/^\//, '');
@@ -11,9 +10,18 @@ function formatPrice(value: number, currency: string) {
   return `${value.toLocaleString()} ${currency}`;
 }
 
+type CartItem = {
+  productId: string;
+  offerId: string;
+  quantity: number;
+};
+
 function App() {
   const [route, setRoute] = useState<string>(getCurrentRoute());
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0].id);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     const onHashChange = () => setRoute(getCurrentRoute());
@@ -21,21 +29,98 @@ function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  const navigate = (path: string) => {
+    window.location.hash = path;
+  };
+
+  const categories = ['All', 'Audio', 'Wearables', 'Home', 'Electronics', 'Fashion', 'Computers'];
+
   const activeProduct = useMemo(
     () => products.find((product) => product.id === selectedProductId) ?? products[0],
     [selectedProductId]
   );
 
   const filteredProducts = useMemo(() => {
-    if (route === 'products' || route === 'home') return products;
-    if (route === 'local') return products.filter((product) => product.offers.some((offer) => offer.source === 'local'));
-    if (route === 'our-store') return products.filter((product) => product.offers.some((offer) => offer.source === 'our-store'));
-    if (route === 'external') return products.filter((product) => product.offers.some((offer) => offer.source === 'amazon' || offer.source === 'noon'));
-    return products;
-  }, [route]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return products.filter((product) => {
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.description.toLowerCase().includes(normalizedSearch) ||
+        product.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
+
+      if (route === 'local') {
+        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'local');
+      }
+
+      if (route === 'our-store') {
+        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'our-store');
+      }
+
+      if (route === 'external') {
+        return matchesCategory && matchesSearch && product.offers.some((offer) => offer.source === 'amazon' || offer.source === 'noon');
+      }
+
+      if (route === 'products') {
+        return matchesCategory && matchesSearch;
+      }
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [route, searchTerm, selectedCategory]);
 
   const amazonDeals = featuredDeals.filter((deal) => deal.source === 'amazon');
   const noonDeals = featuredDeals.filter((deal) => deal.source === 'noon');
+
+  const cartEntries = useMemo(
+    () =>
+      cart
+        .map((entry) => {
+          const product = products.find((item) => item.id === entry.productId);
+          if (!product) return null;
+          const offer = product.offers.find((item) => item.id === entry.offerId) ?? product.offers[0];
+          return { ...entry, product, offer };
+        })
+        .filter(Boolean) as Array<{
+          productId: string;
+          offerId: string;
+          quantity: number;
+          product: (typeof products)[number];
+          offer: (typeof products)[number]['offers'][number];
+        }>,
+    [cart]
+  );
+
+  const cartCount = cartEntries.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartEntries.reduce((sum, item) => sum + item.offer.price * item.quantity, 0);
+
+  const addToCart = (productId: string, offerId: string) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.productId === productId && item.offerId === offerId);
+      if (existing) {
+        return prev.map((item) =>
+          item.productId === productId && item.offerId === offerId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { productId, offerId, quantity: 1 }];
+    });
+  };
+
+  const updateCartQuantity = (productId: string, offerId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item.productId === productId && item.offerId === offerId
+            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
 
   const renderHome = () => (
     <>
@@ -46,10 +131,24 @@ function App() {
           <p>
             Compare local prices, our direct offers, and trusted external deals from Amazon and Noon in one unified experience.
           </p>
-          <div className="hero-actions">
-            <a href="#products" className="button primary">Shop all products</a>
-            <a href="#deals" className="button secondary">View deals</a>
+
+          <div className="search-box">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search products, brands or categories..."
+            />
+            <button className="button primary" onClick={() => navigate('#products')}>
+              Search
+            </button>
           </div>
+
+          <div className="hero-actions">
+            <button className="button primary" onClick={() => navigate('#products')}>Shop all products</button>
+            <button className="button secondary" onClick={() => navigate('#deals')}>View deals</button>
+          </div>
+
           <div className="stats-row">
             <div>
               <strong>32K+</strong>
@@ -75,14 +174,15 @@ function App() {
               <span>{activeProduct.offers[0].sourceLabel}</span>
             </div>
             <div className="buy-button-wrap">
-              <a
+              <button
                 className="button primary"
-                href={activeProduct.offers[0].href}
-                target={activeProduct.offers[0].href.startsWith('http') ? '_blank' : undefined}
-                rel="noreferrer"
+                onClick={() => {
+                  setSelectedProductId(activeProduct.id);
+                  navigate('#buybox');
+                }}
               >
-                Buy now
-              </a>
+                View offer details
+              </button>
             </div>
             <p className="affiliate-note">
               Affiliate disclosure: we may earn a commission from qualifying purchases at no extra cost to you.
@@ -92,10 +192,18 @@ function App() {
       </section>
 
       <section className="category-strip">
-        <button className="chip active" onClick={() => (window.location.hash = '#home')}>All products</button>
-        <button className="chip" onClick={() => (window.location.hash = '#our-store')}>Our Store</button>
-        <button className="chip" onClick={() => (window.location.hash = '#local')}>Local merchants</button>
-        <button className="chip" onClick={() => (window.location.hash = '#external')}>External offers</button>
+        {categories.map((category) => (
+          <button
+            key={category}
+            className={`chip ${selectedCategory === category ? 'active' : ''}`}
+            onClick={() => {
+              setSelectedCategory(category);
+              navigate('#products');
+            }}
+          >
+            {category}
+          </button>
+        ))}
       </section>
 
       <section className="ad-grid">
@@ -114,7 +222,7 @@ function App() {
           <span className="eyebrow">Products</span>
           <h2>Featured marketplace picks</h2>
         </div>
-        <a href="#products">See all</a>
+        <button className="text-button" onClick={() => navigate('#products')}>See all</button>
       </section>
 
       <div className="product-grid">
@@ -136,8 +244,21 @@ function App() {
                   <span>{bestOffer.sourceLabel}</span>
                 </div>
                 <div className="card-actions">
-                  <button className="button primary" onClick={() => setSelectedProductId(product.id)}>View buy box</button>
-                  <a className="button secondary" href={bestOffer.href} target="_blank" rel="noreferrer">Buy</a>
+                  <button
+                    className="button primary"
+                    onClick={() => {
+                      setSelectedProductId(product.id);
+                      navigate('#buybox');
+                    }}
+                  >
+                    View buy box
+                  </button>
+                  <button
+                    className="button secondary"
+                    onClick={() => addToCart(product.id, bestOffer.id)}
+                  >
+                    Add to cart
+                  </button>
                 </div>
               </div>
             </article>
@@ -149,10 +270,26 @@ function App() {
 
   const renderProducts = () => (
     <>
-      <section className="section-header">
+      <section className="section-header with-filters">
         <div>
           <span className="eyebrow">Catalog</span>
           <h2>All products</h2>
+        </div>
+
+        <div className="filter-row">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search catalog"
+          />
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 
@@ -180,8 +317,18 @@ function App() {
                   <span>{bestOffer.sourceLabel}</span>
                 </div>
                 <div className="card-actions">
-                  <button className="button primary" onClick={() => setSelectedProductId(product.id)}>Compare offers</button>
-                  <a className="button secondary" href={bestOffer.href} target="_blank" rel="noreferrer">Purchase</a>
+                  <button
+                    className="button primary"
+                    onClick={() => {
+                      setSelectedProductId(product.id);
+                      navigate('#buybox');
+                    }}
+                  >
+                    Compare offers
+                  </button>
+                  <button className="button secondary" onClick={() => addToCart(product.id, bestOffer.id)}>
+                    Add to cart
+                  </button>
                 </div>
               </div>
             </article>
@@ -201,9 +348,9 @@ function App() {
       </section>
 
       <div className="deal-tabs">
-        <a href="#deals" className={route === 'deals' ? 'active' : ''}>All deals</a>
-        <a href="#deals/amazon" className={route === 'deals/amazon' ? 'active' : ''}>Amazon</a>
-        <a href="#deals/noon" className={route === 'deals/noon' ? 'active' : ''}>Noon</a>
+        <button className={route === 'deals' ? 'active' : ''} onClick={() => navigate('#deals')}>All deals</button>
+        <button className={route === 'deals/amazon' ? 'active' : ''} onClick={() => navigate('#deals/amazon')}>Amazon</button>
+        <button className={route === 'deals/noon' ? 'active' : ''} onClick={() => navigate('#deals/noon')}>Noon</button>
       </div>
 
       <div className="deal-grid">
@@ -251,7 +398,9 @@ function App() {
                 <td>{offer.shipping}</td>
                 <td>{offer.stock}</td>
                 <td>
-                  <a href={offer.href} target="_blank" rel="noreferrer" className="button primary small">Buy now</a>
+                  <button className="button primary small" onClick={() => addToCart(activeProduct.id, offer.id)}>
+                    Add to cart
+                  </button>
                 </td>
               </tr>
             ))}
@@ -309,23 +458,26 @@ function App() {
               <strong>{formatPrice(preferredOffer.price, preferredOffer.currency)}</strong>
               <small>{preferredOffer.sourceLabel}</small>
             </div>
-            <a
+            <button
               className="button primary"
-              href={preferredOffer.href}
-              target={preferredOffer.href.startsWith('http') ? '_blank' : undefined}
-              rel="noreferrer"
+              onClick={() => addToCart(activeProduct.id, preferredOffer.id)}
             >
-              {preferredOffer.isAffiliate ? 'Buy from affiliate link' : 'Buy now'}
-            </a>
+              {preferredOffer.isAffiliate ? 'Add affiliate offer' : 'Add to cart'}
+            </button>
           </div>
+
           <div className="affiliate-disclosure">
             Affiliate disclosure: Global Marketplace may earn a commission from qualifying purchases at no extra cost to the buyer.
           </div>
+
           <div className="offer-list">
             {activeProduct.offers.map((offer) => (
               <div key={offer.id} className={`offer-row ${offer.id === preferredOffer.id ? 'selected' : ''}`}>
                 <span>{offer.sourceLabel}</span>
                 <strong>{formatPrice(offer.price, offer.currency)}</strong>
+                <button className="mini-action" onClick={() => addToCart(activeProduct.id, offer.id)}>
+                  Add
+                </button>
               </div>
             ))}
           </div>
@@ -334,25 +486,158 @@ function App() {
     );
   };
 
+  const renderCart = () => (
+    <>
+      <section className="section-header">
+        <div>
+          <span className="eyebrow">Cart</span>
+          <h2>Your shopping cart</h2>
+        </div>
+      </section>
+
+      <div className="cart-layout">
+        <div className="cart-items">
+          {cartEntries.length === 0 ? (
+            <div className="empty-state">
+              <p>Your cart is empty. Explore the marketplace and add your first offer.</p>
+              <button className="button primary" onClick={() => navigate('#products')}>Start shopping</button>
+            </div>
+          ) : (
+            cartEntries.map(({ product, offer, quantity, productId, offerId }) => (
+              <div key={`${productId}-${offerId}`} className="cart-item">
+                <img src={product.image} alt={product.name} />
+                <div className="cart-info">
+                  <h3>{product.name}</h3>
+                  <span>{offer.sourceLabel}</span>
+                  <strong>{formatPrice(offer.price, offer.currency)}</strong>
+                </div>
+                <div className="quantity-controls">
+                  <button onClick={() => updateCartQuantity(productId, offerId, -1)}>-</button>
+                  <span>{quantity}</span>
+                  <button onClick={() => updateCartQuantity(productId, offerId, 1)}>+</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <aside className="checkout-summary">
+          <h3>Order summary</h3>
+          <div className="summary-row">
+            <span>Items</span>
+            <strong>{cartCount}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Subtotal</span>
+            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
+          </div>
+          <div className="summary-row">
+            <span>Shipping</span>
+            <strong>Free</strong>
+          </div>
+          <div className="summary-row total">
+            <span>Total</span>
+            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
+          </div>
+          <button className="button primary block" onClick={() => navigate('#checkout')}>Proceed to checkout</button>
+        </aside>
+      </div>
+    </>
+  );
+
+  const renderCheckout = () => (
+    <>
+      <section className="section-header">
+        <div>
+          <span className="eyebrow">Checkout</span>
+          <h2>Complete your purchase</h2>
+        </div>
+      </section>
+
+      <div className="checkout-layout">
+        <form className="checkout-form">
+          <div className="field-group">
+            <label>Full name</label>
+            <input type="text" defaultValue="Mohamed Ali" />
+          </div>
+          <div className="field-group">
+            <label>Email</label>
+            <input type="email" defaultValue="hello@example.com" />
+          </div>
+          <div className="field-group">
+            <label>Address</label>
+            <textarea defaultValue="Riyadh, Saudi Arabia" rows={4} />
+          </div>
+          <div className="field-group">
+            <label>Payment method</label>
+            <select defaultValue="credit-card">
+              <option value="credit-card">Credit / Debit Card</option>
+              <option value="apple-pay">Apple Pay</option>
+              <option value="cash">Cash on Delivery</option>
+            </select>
+          </div>
+          <button className="button primary" type="button" onClick={() => navigate('#home')}>
+            Confirm order
+          </button>
+        </form>
+
+        <aside className="checkout-summary">
+          <h3>Purchase review</h3>
+          {cartEntries.map(({ product, offer, quantity, productId, offerId }) => (
+            <div key={`${productId}-${offerId}`} className="summary-purchase-item">
+              <span>{product.name} × {quantity}</span>
+              <strong>{formatPrice(offer.price * quantity, offer.currency)}</strong>
+            </div>
+          ))}
+          <div className="summary-row total">
+            <span>Total</span>
+            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
+          </div>
+        </aside>
+      </div>
+    </>
+  );
+
+  const routeName = route.split('/')[0];
+
   return (
     <div className="page-shell">
       <header className="topbar">
         <div className="brand">Global Marketplace</div>
         <nav>
-          <a href="#home">Home</a>
-          <a href="#products">Products</a>
-          <a href="#deals">Deals</a>
-          <a href="#compare">Compare</a>
-          <a href="#sellers">Merchants</a>
+          <button onClick={() => navigate('#home')}>Home</button>
+          <button onClick={() => navigate('#products')}>Products</button>
+          <button onClick={() => navigate('#deals')}>Deals</button>
+          <button onClick={() => navigate('#compare')}>Compare</button>
+          <button onClick={() => navigate('#sellers')}>Merchants</button>
         </nav>
-        <button className="header-cta">Sell with us</button>
+        <div className="header-actions">
+          <button className="cart-button" onClick={() => navigate('#cart')}>
+            Cart ({cartCount})
+          </button>
+          <button className="header-cta" onClick={() => navigate('#checkout')}>Sell with us</button>
+        </div>
       </header>
 
-      {(route === 'home' || route === 'products' || route === 'local' || route === 'our-store' || route === 'external') && <>{route === 'home' ? renderHome() : renderProducts()}</>}
-      {(route === 'deals' || route === 'deals/amazon' || route === 'deals/noon') && renderDeals()}
-      {route === 'compare' && renderCompare()}
-      {route === 'sellers' && renderMerchants()}
-      {route === 'buybox' && renderBuyBox()}
+      {routeName === 'home' && renderHome()}
+      {routeName === 'products' && renderProducts()}
+      {routeName === 'deals' && renderDeals()}
+      {routeName === 'compare' && renderCompare()}
+      {routeName === 'sellers' && renderMerchants()}
+      {routeName === 'buybox' && renderBuyBox()}
+      {routeName === 'cart' && renderCart()}
+      {routeName === 'checkout' && renderCheckout()}
+      {routeName === 'product' && (
+        <>
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Product</span>
+              <h2>{activeProduct.name}</h2>
+            </div>
+          </div>
+          {renderBuyBox()}
+        </>
+      )}
 
       <footer className="site-footer">
         <div>
