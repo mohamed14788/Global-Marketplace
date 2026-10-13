@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { bannerAds, featuredDeals, merchants, products } from './data/catalog';
+import { bannerAds, featuredDeals, merchants, products as catalogProducts } from './data/catalog';
+import { getMarketplaceProducts } from './lib/marketplace-data';
+import type { Product } from './types';
 
 const getCurrentRoute = () => {
   const raw = window.location.hash.replace('#', '').replace(/^\//, '');
@@ -18,15 +20,40 @@ type CartItem = {
 
 function App() {
   const [route, setRoute] = useState<string>(getCurrentRoute());
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0].id);
+  const [products, setProducts] = useState<Product[]>(catalogProducts);
+  const [selectedProductId, setSelectedProductId] = useState<string>(catalogProducts[0].id);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadProducts = async () => {
+      setIsLoading(true);
+      const nextProducts = await getMarketplaceProducts();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setProducts(nextProducts);
+      if (nextProducts.length > 0) {
+        setSelectedProductId(nextProducts[0].id);
+      }
+      setIsLoading(false);
+    };
+
+    loadProducts();
+
     const onHashChange = () => setRoute(getCurrentRoute());
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('hashchange', onHashChange);
+    };
   }, []);
 
   const navigate = (path: string) => {
@@ -36,8 +63,8 @@ function App() {
   const categories = ['All', 'Audio', 'Wearables', 'Home', 'Electronics', 'Fashion', 'Computers'];
 
   const activeProduct = useMemo(
-    () => products.find((product) => product.id === selectedProductId) ?? products[0],
-    [selectedProductId]
+    () => products.find((product) => product.id === selectedProductId) ?? products[0] ?? catalogProducts[0],
+    [products, selectedProductId]
   );
 
   const filteredProducts = useMemo(() => {
@@ -69,7 +96,7 @@ function App() {
 
       return categoryMatch && searchMatch;
     });
-  }, [route, searchTerm, selectedCategory]);
+  }, [products, route, searchTerm, selectedCategory]);
 
   const amazonDeals = featuredDeals.filter((deal) => deal.source === 'amazon');
   const noonDeals = featuredDeals.filter((deal) => deal.source === 'noon');
@@ -90,7 +117,7 @@ function App() {
           product: (typeof products)[number];
           offer: (typeof products)[number]['offers'][number];
         }>,
-    [cart]
+    [cart, products]
   );
 
   const cartCount = cartEntries.reduce((sum, item) => sum + item.quantity, 0);
@@ -121,6 +148,16 @@ function App() {
         .filter((item) => item.quantity > 0)
     );
   };
+
+  if (isLoading && products.length === 0) {
+    return (
+      <div className="page-shell">
+        <div className="empty-state" style={{ minHeight: '50vh', display: 'grid', placeItems: 'center' }}>
+          <p>Loading marketplace data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderHome = () => (
     <>
@@ -510,152 +547,4 @@ function App() {
           {cartEntries.length === 0 ? (
             <div className="empty-state">
               <p>Your cart is empty. Explore the marketplace and add your first offer.</p>
-              <button type="button" className="button primary" onClick={() => navigate('#products')}>
-                Start shopping
-              </button>
-            </div>
-          ) : (
-            cartEntries.map(({ product, offer, quantity, productId, offerId }) => (
-              <div key={`${productId}-${offerId}`} className="cart-item">
-                <img src={product.image} alt={product.name} />
-                <div className="cart-info">
-                  <h3>{product.name}</h3>
-                  <span>{offer.sourceLabel}</span>
-                  <strong>{formatPrice(offer.price, offer.currency)}</strong>
-                </div>
-                <div className="quantity-controls">
-                  <button type="button" onClick={() => updateCartQuantity(productId, offerId, -1)}>-</button>
-                  <span>{quantity}</span>
-                  <button type="button" onClick={() => updateCartQuantity(productId, offerId, 1)}>+</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <aside className="checkout-summary">
-          <h3>Order summary</h3>
-          <div className="summary-row">
-            <span>Items</span>
-            <strong>{cartCount}</strong>
-          </div>
-          <div className="summary-row">
-            <span>Subtotal</span>
-            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
-          </div>
-          <div className="summary-row">
-            <span>Shipping</span>
-            <strong>Free</strong>
-          </div>
-          <div className="summary-row total">
-            <span>Total</span>
-            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
-          </div>
-          <button type="button" className="button primary block" onClick={() => navigate('#checkout')}>
-            Proceed to checkout
-          </button>
-        </aside>
-      </div>
-    </>
-  );
-
-  const renderCheckout = () => (
-    <>
-      <section className="section-header">
-        <div>
-          <span className="eyebrow">Checkout</span>
-          <h2>Complete your purchase</h2>
-        </div>
-      </section>
-
-      <div className="checkout-layout">
-        <form className="checkout-form">
-          <div className="field-group">
-            <label>Full name</label>
-            <input type="text" defaultValue="Mohamed Ali" />
-          </div>
-          <div className="field-group">
-            <label>Email</label>
-            <input type="email" defaultValue="hello@example.com" />
-          </div>
-          <div className="field-group">
-            <label>Address</label>
-            <textarea defaultValue="Riyadh, Saudi Arabia" rows={4} />
-          </div>
-          <div className="field-group">
-            <label>Payment method</label>
-            <select defaultValue="credit-card">
-              <option value="credit-card">Credit / Debit Card</option>
-              <option value="apple-pay">Apple Pay</option>
-              <option value="cash">Cash on Delivery</option>
-            </select>
-          </div>
-          <button type="button" className="button primary" onClick={() => navigate('#home')}>
-            Confirm order
-          </button>
-        </form>
-
-        <aside className="checkout-summary">
-          <h3>Purchase review</h3>
-          {cartEntries.map(({ product, offer, quantity, productId, offerId }) => (
-            <div key={`${productId}-${offerId}`} className="summary-purchase-item">
-              <span>{product.name} × {quantity}</span>
-              <strong>{formatPrice(offer.price * quantity, offer.currency)}</strong>
-            </div>
-          ))}
-          <div className="summary-row total">
-            <span>Total</span>
-            <strong>{formatPrice(cartTotal, 'SAR')}</strong>
-          </div>
-        </aside>
-      </div>
-    </>
-  );
-
-  const routeName = route.split('/')[0];
-
-  return (
-    <div className="page-shell">
-      <header className="topbar">
-        <div className="brand">Global Marketplace</div>
-        <nav>
-          <button type="button" onClick={() => navigate('#home')}>Home</button>
-          <button type="button" onClick={() => navigate('#products')}>Products</button>
-          <button type="button" onClick={() => navigate('#deals')}>Deals</button>
-          <button type="button" onClick={() => navigate('#compare')}>Compare</button>
-          <button type="button" onClick={() => navigate('#sellers')}>Merchants</button>
-        </nav>
-        <div className="header-actions">
-          <button type="button" className="cart-button" onClick={() => navigate('#cart')}>
-            Cart ({cartCount})
-          </button>
-          <button type="button" className="header-cta" onClick={() => navigate('#checkout')}>
-            Sell with us
-          </button>
-        </div>
-      </header>
-
-      {routeName === 'home' && renderHome()}
-      {routeName === 'products' && renderProducts()}
-      {routeName === 'deals' && renderDeals()}
-      {routeName === 'compare' && renderCompare()}
-      {routeName === 'sellers' && renderMerchants()}
-      {routeName === 'buybox' && renderBuyBox()}
-      {routeName === 'cart' && renderCart()}
-      {routeName === 'checkout' && renderCheckout()}
-
-      <footer className="site-footer">
-        <div>
-          <strong>Global Marketplace</strong>
-          <p>Hybrid commerce architecture combining direct sales, local merchants, and affiliate offers.</p>
-        </div>
-        <div>
-          <strong>Affiliate policy</strong>
-          <p>We may earn commission from qualifying purchases at no extra cost to you.</p>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-export default App;
+              <button type="button" className="
